@@ -3,52 +3,63 @@
         <h1 class="todo-title"><i class="fa fa-list"></i> Todo List</h1>
 
         <!-- Form to add a new task -->
-        <form @submit.prevent="addTask">
+        <form @submit.prevent="addTask" class="todo-form">
             <div class="form-group">
-                <input 
-                    v-model="title" 
-                    type="text" 
-                    name="title" 
-                    placeholder="Task Title" 
+                <input
+                    v-model="title"
+                    type="text"
+                    name="title"
+                    placeholder="Enter a task (max 50 characters)"
                     class="form-control"
-                >
+                />
             </div>
-            <div class="form1">
-                <input type="submit" value="Add Task" class="btn btn-info form">
-            </div>
+            <button type="submit" class="btn btn-primary add-btn">Add Task</button>
         </form>
 
         <!-- Display tasks -->
         <ul class="task-list">
-            <li v-for="task in tasks" :key="task.id" class="task-item">
-                <!-- Flex container for checkbox and task title -->
+            <li
+                v-for="task in tasks"
+                :key="task.id"
+                class="task-item"
+            >
                 <div class="task-content">
-                    <!-- Checkbox to mark the task as completed or incomplete -->
-                    <input 
-                        type="checkbox" 
-                        v-model="task.completed" 
-                        @change="updateTask(task, true)" 
-                    >
+                    <!-- Checkbox to mark the task as completed -->
+                    <input
+                        type="checkbox"
+                        v-model="task.completed"
+                        @change="updateTask(task, true)"
+                    />
 
-                    <!-- Conditionally show input field for editing or task title -->
-                    <span v-if="!task.isEditing" :class="{ completed: task.completed }">{{ task.title }}</span>
-                    <input 
-                        v-if="task.isEditing" 
-                        v-model="task.title" 
-                        type="text" 
-                        class="edit-input"
-                        @blur="updateTask(task)"
+                    <!-- Show task title or input field when editing -->
+                    <span
+                        v-if="!task.isEditing"
+                        :class="{ completed: task.completed }"
                     >
+                        {{ task.title }}
+                    </span>
+                    <input
+                        v-else
+                        v-model="task.title"
+                        type="text"
+                        class="edit-input"
+                        @blur="toggleEditMode(task)"
+                        @keyup.enter="toggleEditMode(task)"
+                    />
                 </div>
 
-                <!-- Button container for update and delete buttons -->
+                <!-- Action buttons -->
                 <div class="button-container">
-                    <!-- Update button with Font Awesome pencil icon -->
-                    <button class="update-btn" @click="toggleEditMode(task)">
+                    <button
+                        class="update-btn"
+                        @click="toggleEditMode(task)"
+                    >
                         <i class="fa" :class="task.isEditing ? 'fa-save' : 'fa-edit'"></i>
                     </button>
-                    <!-- Delete button with Font Awesome trash icon -->
-                    <button class="delete-btn" @click="deleteTask(task.id)">
+                    <button
+                        class="delete-btn"
+                        @click="deleteTask(task.id)"
+                    >
                         <i class="fa fa-trash"></i>
                     </button>
                 </div>
@@ -58,98 +69,108 @@
 </template>
 
 <script>
-import axios from 'axios';
+import axios from "axios";
 
 export default {
     data() {
         return {
-            title: '',  // Stores the title for the new task
-            tasks: []   // Stores the list of tasks
+            title: "", // Stores the title for the new task
+            tasks: []  // Stores the list of tasks
         };
     },
     mounted() {
         this.fetchTasks(); // Fetch tasks when the component mounts
     },
     methods: {
-        // Fetch all tasks from the API
         fetchTasks() {
-            axios.get('http://localhost:8000/api/tasks')
-                .then(response => {
-                    this.tasks = response.data;
+            axios
+                .get("http://localhost:8000/api/tasks")
+                .then((response) => {
+                    this.tasks = response.data || []; // Ensure tasks is always an array
                 })
-                .catch(error => console.error('Error fetching tasks:', error));
+                .catch((error) =>
+                    console.error("Error fetching tasks:", error)
+                );
         },
-
-        // Add a new task
         addTask() {
-
+            const maxLength = 50;
             const validTitle = /^[a-zA-Z\s]+$/;
-           // const validTitle = /^[a-zA-Z0-9\s]*$/; 
 
-            if (this.title.trim() === ''){
-                alert('Task title cannot be empty!');
+            if (this.title.trim() === "") {
+                alert("Task title cannot be empty!");
                 return;
             }
 
-            if(!validTitle.test(this.title)){
-                alert('Task title can only contain letters and spaces');
+            if (this.title.length > maxLength) {
+                alert(`Task title cannot exceed ${maxLength} characters`);
                 return;
             }
 
-            axios.post('http://localhost:8000/api/tasks', { title: this.title })
-                .then(response => {
-                    this.tasks.push(response.data); // Add the task to the local list
-                    this.title = ''; // Clear the input field
-                    alert('Task successfully added to the list!');
+            if (!validTitle.test(this.title)) {
+                alert("Task title can only contain letters and spaces");
+                return;
+            }
+
+            axios
+                .post("http://localhost:8000/api/tasks", { title: this.title })
+                .then((response) => {
+                    this.tasks.push({
+                        ...response.data,
+                        isEditing: false,
+                        completed: false
+                    });
+                    this.title = ""; // Clear the input field
                 })
-                .catch(error => console.error('Error adding task:', error));
+                .catch((error) =>
+                    console.error("Error adding task:", error)
+                );
         },
-
-        // Update a task's completion status or title
         updateTask(task, isCheckboxChange = false) {
             const updatedTask = {
                 title: task.title,
                 completed: task.completed
             };
 
-            axios.put(`http://localhost:8000/api/tasks/${task.id}`, updatedTask)
-                .then(response => {
-                    // Update the task locally
-                    const index = this.tasks.findIndex(t => t.id === task.id);
+            axios
+                .put(`http://localhost:8000/api/tasks/${task.id}`, updatedTask)
+                .then((response) => {
+                    const index = this.tasks.findIndex((t) => t.id === task.id);
                     if (index !== -1) {
-                        this.tasks[index] = response.data;
+                        this.tasks[index] = {
+                            ...response.data,
+                            isEditing: false
+                        };
                     }
-
-                    // Only show the alert if it's not a checkbox change
                     if (!isCheckboxChange) {
-                        alert('Task updated successfully!');
+                        alert("Task updated successfully!");
                     }
                 })
-                .catch(error => console.error('Error updating task:', error));
+                .catch((error) =>
+                    console.error("Error updating task:", error)
+                );
         },
-
-        // Toggle edit mode for a task
         toggleEditMode(task) {
             if (task.isEditing) {
-                // If in editing mode, update the task
+                if (task.title.trim() === "") {
+                    alert("Task title cannot be empty!");
+                    return;
+                }
                 this.updateTask(task);
             }
-            // Toggle the editing state
             task.isEditing = !task.isEditing;
         },
-
-        // Delete a task
         deleteTask(id) {
-            if (confirm('Are you sure you want to delete this task?')) {
-                axios.delete(`http://localhost:8000/api/tasks/${id}`)
+            if (confirm("Are you sure you want to delete this task?")) {
+                axios
+                    .delete(`http://localhost:8000/api/tasks/${id}`)
                     .then(() => {
-                        // Remove the task from the local list after successful deletion
-                        this.tasks = this.tasks.filter(task => task.id !== id);
-                        alert('Task deleted successfully!');
+                        this.tasks = this.tasks.filter(
+                            (task) => task.id !== id
+                        );
                     })
-                    .catch(error => console.error('Error deleting task:', error));
-            } else {
-                alert('Task deletion cancelled.');
+                    .catch((error) =>
+                        console.error("Error deleting task:", error)
+                    );
             }
         }
     }
@@ -157,114 +178,177 @@ export default {
 </script>
 
 <style scoped>
-/* Styles for container, form, task list, etc. */
+/* Main container */
 .todo-container {
-    background-color: gray;
     max-width: 600px;
-    margin: 0 auto;
+    margin: 2rem auto;
+    background: #fef9ef; /* Soft bright background */
     padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
-}
-.todo-title {
-    text-align: center;
-    font-size: 2em;
-    margin-bottom: 20px;
-    color: #333;
-}
-.form-group {
-    margin-bottom: 10px;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
-.form1{
+.todo-container:hover {
+    transform: scale(1.02);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+/* Title */
+.todo-title {
     text-align: center;
+    color: #ff6f61; /* Soft bright coral */
+    font-size: 2rem;
+    margin-bottom: 20px;
+    transition: color 0.3s ease;
 }
-.form:hover {
-    background-color: rgb(53, 58, 58);
+
+.todo-title:hover {
+    color: #ff9478; /* Slightly brighter coral */
 }
+
+/* Form styling */
+.todo-form {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 10px;
+    margin-bottom: 20px;
+    justify-content: space-between;
+    align-items: center;
+}
+
 .form-control {
-    width: 100%;
+    flex: 1;
     padding: 10px;
-    font-size: 1em;
-    border-radius: 4px;
     border: 1px solid #ddd;
+    border-radius: 8px; /* Rounded corners */
+    font-size: 1rem;
+    transition: box-shadow 0.3s ease, border-color 0.3s ease;
 }
-.btn-info {
-    background-color: #4CAF50;
-    color: white;
+
+.form-control:focus {
+    outline: none;
+    box-shadow: 0 0 8px rgba(255, 111, 97, 0.5); /* Coral shadow on focus */
+    border-color: #ff6f61; /* Coral border on focus */
+}
+
+.add-btn {
+    background: #ff6f61; /* Soft bright coral */
+    color: #fff;
     border: none;
     padding: 10px 20px;
-    border-radius: 4px;
+    border-radius: 8px; /* Rounded corners */
     cursor: pointer;
+    font-size: 1rem;
+    font-weight: bold;
+    transition: transform 0.3s ease, background-color 0.3s ease;
 }
+
+.add-btn:hover {
+    background: #ff9478; /* Slightly brighter coral */
+    transform: scale(1.05);
+}
+
+/* Task list */
 .task-list {
     list-style: none;
     padding: 0;
-    margin: 20px 0;
+    margin: 0;
 }
+
 .task-item {
     display: flex;
-    justify-content: space-between; /* Space between task content and buttons */
+    justify-content: space-between;
     align-items: center;
-    padding: 10px;
-    background-color: #fff;
-    border-radius: 4px;
+    background: #ffffff; /* White background for tasks */
+    padding: 10px 20px;
+    border-radius: 8px; /* Rounded corners */
     margin-bottom: 10px;
+    border: 1px solid #ddd; /* Soft grey border */
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease, background-color 0.3s ease, border-color 0.3s ease;
 }
 
-/* Container for checkbox and task title */
+.task-item:hover {
+    transform: scale(1.02);
+    background-color: #fce4dc; /* Light coral background */
+    border-color: #ff9478; /* Lighter coral border on hover */
+}
+
+/* Task content */
 .task-content {
-    margin-top: 10px;
     display: flex;
-    align-items: center; /* Align checkbox and title in a row */
+    align-items: center;
+    gap: 10px;
 }
 
-/* Styling for the checkbox */
 input[type="checkbox"] {
-    margin-right: 10px; /* Space between the checkbox and task title */
-    transform: scale(1.2); /* Make the checkbox slightly larger */
+    transform: scale(1.2);
+    width: 20px;
+    height: 20px;
+    border: 1px solid #ddd;
+    border-radius: 50%; /* Circular checkbox */
+    appearance: none;
+    outline: none;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+    cursor: pointer;
 }
 
-/* Line-through style when the task is completed */
+input[type="checkbox"]:checked {
+    background-color: #ff6f61; /* Coral when checked */
+    box-shadow: 0 0 5px rgba(255, 111, 97, 0.5);
+}
+
+input[type="checkbox"]:hover {
+    background-color: #ffe0db; /* Light coral on hover */
+    box-shadow: 0 0 4px rgba(0, 0, 0, 0.2);
+}
+
 .completed {
     text-decoration: line-through;
     color: #888;
+    transition: color 0.3s ease;
 }
 
-/* Flexbox container for buttons (update and delete) */
+/* Edit input */
+.edit-input {
+    flex: 1;
+    padding: 8px;
+    font-size: 1rem;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.edit-input:focus {
+    outline: none;
+    border-color: #4caf50; /* Green border on focus */
+    box-shadow: 0 0 8px rgba(76, 175, 80, 0.5); /* Green shadow on focus */
+}
+
+/* Buttons */
 .button-container {
     display: flex;
-    gap: 10px; /* Space between the buttons */
+    gap: 10px;
 }
 
-/* Styling for the buttons */
-.delete-btn, .update-btn {
-    padding: 6px 12px;
-    border-radius: 4px;
-    cursor: pointer;
-    border: none;
-    font-size: 14px;
-}
-
-/* Specific styles for Delete button */
+.update-btn,
 .delete-btn {
-    background-color: #ff4d4f;
-    color: white;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 1.2rem;
+    transition: transform 0.3s ease, color 0.3s ease;
 }
 
-/* Specific styles for Update button */
-.update-btn {
-    background-color: #4CAF50;
-    color: white;
+.update-btn:hover {
+    transform: scale(1.1);
+    color: #4caf50; /* Green for edit/save button */
 }
 
-/* Styling for the input field while editing */
-.edit-input {
-    flex: 1; /* Allow the input to take up remaining space */
-    padding: 8px;
-    font-size: 1em;
-    border-radius: 4px;
-    border: 1px solid #ddd;
+.delete-btn:hover {
+    transform: scale(1.1);
+    color: #f44336; /* Red for delete button */
 }
+
 </style>

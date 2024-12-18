@@ -38,6 +38,6 @@ onMounted(() => {
     // Set a timer to hide the text after 6 seconds
     setTimeout(() => {
         isVisible.value = false;
-    }, 2000); // 6000 ms = 6 seconds
+    }, 1000); // 6000 ms = 6 seconds
 });
 </script>
